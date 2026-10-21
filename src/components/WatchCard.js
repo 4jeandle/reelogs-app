@@ -328,7 +328,7 @@ export default function WatchCard({ watch, friendProfiles }) {
     stars: { fontSize: 14, color: "#FFB800", paddingHorizontal: 14, paddingBottom: 4 },
     memo: { fontSize: 13, lineHeight: 18, paddingHorizontal: 14, paddingBottom: 8, color: C.text3 },
     actions: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border },
-    actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, minWidth: 44 },
+    actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, width: 52 },
     actionCount: { fontSize: 12, fontWeight: "600", minWidth: 16 },
     watchBtn: { flex: 1, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: ott.color, marginHorizontal: 6 },
     watchBtnText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
@@ -380,7 +380,7 @@ export default function WatchCard({ watch, friendProfiles }) {
       <View style={s.actions}>
         <TouchableOpacity style={s.actionBtn} onPress={() => user && toggleLike(watch.id, user.uid)}>
           <Ionicons name={isLiked ? "heart" : "heart-outline"} size={22} color={isLiked ? "#E53935" : C.text3} />
-          {likedUids.length > 0 && <Text style={[s.actionCount, { color: isLiked ? "#E53935" : C.text3 }]}>{likedUids.length}</Text>}
+          <Text style={[s.actionCount, { color: isLiked ? "#E53935" : C.text3 }]}>{likedUids.length}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.watchBtn} onPress={handleWatch}>
           <Text style={s.watchBtnText}>▶ 보기</Text>
