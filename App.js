@@ -149,7 +149,7 @@ function MyPageSheet({ visible, onClose }) {
 
   const initial = (profile?.displayName || "?").charAt(0).toUpperCase();
 
-  const s = StyleSheet.create({
+  const s = React.useMemo(() => StyleSheet.create({
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
     sheet: {
       backgroundColor: C.surface,
@@ -205,7 +205,7 @@ function MyPageSheet({ visible, onClose }) {
       marginRight: 14,
     },
     logoutText: { flex: 1, fontSize: 15, color: "#FF3B30", fontWeight: "500" },
-  });
+  }), [C, insets]);
 
   return (
     <>

@@ -157,9 +157,15 @@ export function subscribeComments(watchId, callback) {
 // ── 좋아요 ─────────────────────────────────────────────────
 export async function toggleLike(watchId, uid) {
   const ref = doc(db, "watches", watchId, "likes", uid);
+  const myLikeRef = doc(db, "users", uid, "myLikes", watchId);
   const snap = await getDoc(ref);
-  if (snap.exists()) await deleteDoc(ref);
-  else await setDoc(ref, { uid, createdAt: serverTimestamp() });
+  if (snap.exists()) {
+    await deleteDoc(ref);
+    await deleteDoc(myLikeRef);
+  } else {
+    await setDoc(ref, { uid, createdAt: serverTimestamp() });
+    await setDoc(myLikeRef, { watchId, createdAt: serverTimestamp() });
+  }
 }
 
 export function subscribeLikes(watchId, callback) {
@@ -183,20 +189,30 @@ export function subscribeBookmarks(uid, callback) {
 }
 
 // ── 좋아요한 기록 ──────────────────────────────────────────
+// 유저가 좋아요한 각 watch의 likes/{uid} 문서를 직접 읽는 방식
+// (collectionGroup 인덱스 없이도 작동)
 export async function getLikedWatches(uid) {
-  const { collectionGroup } = await import("firebase/firestore");
-  const likesQ = query(collectionGroup(db, "likes"), where("uid", "==", uid));
-  const snap = await getDocs(likesQ);
-  const watchIds = snap.docs.map(d => d.ref.parent.parent.id);
-  if (watchIds.length === 0) return [];
-  const results = [];
-  for (let i = 0; i < watchIds.length; i += 10) {
-    const chunk = watchIds.slice(i, i + 10);
-    const wq = query(collection(db, "watches"), where("__name__", "in", chunk));
-    const wsnap = await getDocs(wq);
-    wsnap.docs.forEach(d => results.push({ id: d.id, ...d.data() }));
+  // 내 watches 중 likes 서브컬렉션에 내 uid 문서가 있는 것들을 찾음
+  // 대신 모든 watches를 스캔하지 않고, 내 uid로 좋아요된 watchId 목록을
+  // users/{uid}/likedWatchIds 에 저장하는 방식으로 대체
+  // 현재는 watches 전체에서 likes 서브컬렉션을 확인하는 대신
+  // toggleLike 시 users/{uid}/likes/{watchId} 에도 저장된 데이터를 읽음
+  try {
+    const likesSnap = await getDocs(collection(db, "users", uid, "myLikes"));
+    if (likesSnap.empty) return [];
+    const watchIds = likesSnap.docs.map(d => d.id);
+    const results = [];
+    for (let i = 0; i < watchIds.length; i += 10) {
+      const chunk = watchIds.slice(i, i + 10);
+      const wq = query(collection(db, "watches"), where("__name__", "in", chunk));
+      const wsnap = await getDocs(wq);
+      wsnap.docs.forEach(d => results.push({ id: d.id, ...d.data() }));
+    }
+    return results;
+  } catch (e) {
+    console.warn("getLikedWatches error:", e);
+    return [];
   }
-  return results;
 }
 
 // ── 프로필 사진 ────────────────────────────────────────────
