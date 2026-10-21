@@ -257,7 +257,7 @@ function MyPageSheet({ visible, onClose }) {
               </View>
 
               {/* 메뉴 */}
-              <TouchableOpacity style={s.menuItem} onPress={() => { setEditModal(true); }}>
+              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); setTimeout(() => setEditModal(true), 300); }}>
                 <View style={s.menuIconWrap}><Ionicons name="person-outline" size={18} color={C.text} /></View>
                 <Text style={s.menuText}>정보 수정</Text>
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
@@ -651,9 +651,12 @@ function BookmarksScreen({ onClose }) {
     return subscribeMyWatches(user.uid, setWatches);
   }, [user]);
 
-  const bookmarkedWatches = watches.filter(w => bookmarkedIds.includes(w.id));
+  const bookmarkedWatches = React.useMemo(
+    () => watches.filter(w => bookmarkedIds.includes(w.id)),
+    [watches, bookmarkedIds]
+  );
 
-  const s = StyleSheet.create({
+  const s = React.useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
     header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
     back: { padding: 4, marginRight: 8 },
@@ -669,7 +672,7 @@ function BookmarksScreen({ onClose }) {
     itemMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
     stars: { fontSize: 13, color: "#FFB800", marginTop: 2 },
     removeBtn: { padding: 8 },
-  });
+  }), [C]);
 
   return (
     <SafeAreaView style={s.container}>
