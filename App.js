@@ -211,7 +211,7 @@ function MyPageSheet({ visible, onClose }) {
     <>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+          <View>
             <View style={s.sheet}>
               <View style={s.handle} />
 
@@ -286,7 +286,7 @@ function MyPageSheet({ visible, onClose }) {
                 <Text style={s.logoutText}>로그아웃</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
 
