@@ -470,28 +470,10 @@ function EditProfileModal({ onClose }) {
           </>
         ) : (
           <>
-            {/* 이메일 변경 */}
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>이메일 변경</Text>
-              <Text style={s.emailHint}>현재: {user?.email}</Text>
-              <Text style={s.label}>새 이메일</Text>
-              <TextInput style={s.input} value={newEmail} onChangeText={setNewEmail}
-                placeholder="새 이메일 주소" placeholderTextColor={C.text3}
-                keyboardType="email-address" autoCapitalize="none" />
-              <Text style={s.label}>현재 비밀번호 확인</Text>
-              <TextInput style={s.input} value={currentPw} onChangeText={setCurrentPw}
-                placeholder="현재 비밀번호" placeholderTextColor={C.text3}
-                secureTextEntry />
-              <TouchableOpacity style={s.saveBtn} onPress={handleChangeEmail} disabled={loading}>
-                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>이메일 변경</Text>}
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.divider} />
-
             {/* 비밀번호 변경 */}
             <View style={s.section}>
               <Text style={s.sectionTitle}>비밀번호 변경</Text>
+              <Text style={s.emailHint}>현재 계정: {user?.email}</Text>
               <Text style={s.label}>현재 비밀번호</Text>
               <TextInput style={s.input} value={currentPw} onChangeText={setCurrentPw}
                 placeholder="현재 비밀번호" placeholderTextColor={C.text3}

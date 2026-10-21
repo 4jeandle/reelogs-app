@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, ScrollView,
+  Modal, TextInput, Alert, ActivityIndicator, ScrollView, Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
-import { subscribeMyGroups, createGroup, joinGroupByCode, deleteGroup } from "../lib/db";
+import { subscribeMyGroups, createGroup, joinGroupByCode, deleteGroup, subscribeGroupWatches } from "../lib/db";
+import WatchCard from "../components/WatchCard";
 
 export default function GroupsScreen() {
   const { C } = useTheme();
@@ -14,6 +15,7 @@ export default function GroupsScreen() {
   const [groups, setGroups] = useState([]);
   const [createModal, setCreateModal] = useState(false);
   const [joinModal, setJoinModal] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -66,6 +68,10 @@ export default function GroupsScreen() {
 
   const COLORS = ["#FF3B30", "#FF9500", "#34C759", "#007AFF", "#AF52DE", "#FF2D55"];
 
+  if (selectedGroup) {
+    return <GroupDetailScreen group={selectedGroup} onBack={() => setSelectedGroup(null)} C={C} user={user} />;
+  }
+
   return (
     <View style={s.container}>
       <View style={s.header}>
@@ -90,7 +96,7 @@ export default function GroupsScreen() {
           const memberCount = group.members?.length || 0;
           const displayMembers = (group.memberNames || []).slice(0, 4);
           return (
-            <View key={group.id} style={s.groupCard}>
+            <TouchableOpacity key={group.id} style={s.groupCard} onPress={() => setSelectedGroup(group)}>
               <View style={s.groupTop}>
                 <View style={s.clapIcon}>
                   <Ionicons name="film" size={22} color={C.red} />
@@ -119,7 +125,7 @@ export default function GroupsScreen() {
                 )}
                 <Text style={s.memberCount}>멤버 {memberCount}명</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
 
@@ -220,5 +226,119 @@ function JoinGroupModal({ visible, onClose, user, C }) {
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GroupDetailScreen
+// ─────────────────────────────────────────────
+function GroupDetailScreen({ group, onBack, C, user }) {
+  const [watches, setWatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [memberProfiles, setMemberProfiles] = useState([]);
+
+  useEffect(() => {
+    import("firebase/firestore").then(({ getDoc, doc, getDocs, collection, query, where, orderBy }) => {
+      import("../lib/firebase").then(({ db }) => {
+        // 멤버 프로필 가져오기
+        const fetchMembers = async () => {
+          const profiles = [];
+          for (const uid of (group.members || [])) {
+            try {
+              const snap = await getDoc(doc(db, "users", uid));
+              if (snap.exists()) profiles.push({ uid, ...snap.data() });
+            } catch {}
+          }
+          setMemberProfiles(profiles);
+        };
+        fetchMembers();
+      });
+    });
+  }, [group]);
+
+  useEffect(() => {
+    if (!group.members || group.members.length === 0) { setLoading(false); return; }
+    setLoading(true);
+    const unsub = subscribeGroupWatches(group.members, (data) => {
+      setWatches(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, [group.members]);
+
+  const s = React.useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: {
+      flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14,
+      backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    back: { padding: 4, marginRight: 8 },
+    headerTitle: { fontSize: 17, fontWeight: "700", color: C.text, flex: 1 },
+    headerCode: { fontSize: 13, color: C.text3 },
+    memberSection: {
+      backgroundColor: C.surface, paddingVertical: 14, paddingHorizontal: 16,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    memberLabel: { fontSize: 12, color: C.text3, fontWeight: "600", marginBottom: 10 },
+    memberRow: { flexDirection: "row", gap: 12 },
+    memberItem: { alignItems: "center", gap: 4 },
+    memberAvatar: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: C.red, alignItems: "center", justifyContent: "center",
+    },
+    memberAvatarText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
+    memberName: { fontSize: 11, color: C.text3, maxWidth: 48, textAlign: "center" },
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+    emptyText: { fontSize: 15, color: C.text3 },
+  }), [C]);
+
+  const COLORS = ["#FF3B30", "#FF9500", "#34C759", "#007AFF", "#AF52DE"];
+
+  return (
+    <View style={s.container}>
+      <View style={s.header}>
+        <TouchableOpacity style={s.back} onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>{group.name}</Text>
+        <Text style={s.headerCode}>#{group.code}</Text>
+      </View>
+
+      {/* 멤버 목록 */}
+      <View style={s.memberSection}>
+        <Text style={s.memberLabel}>멤버 {memberProfiles.length}명</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={s.memberRow}>
+            {memberProfiles.map((m, i) => (
+              <View key={m.uid} style={s.memberItem}>
+                <View style={[s.memberAvatar, { backgroundColor: COLORS[i % COLORS.length] }]}>
+                  {m.photoURL
+                    ? <Image source={{ uri: m.photoURL }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                    : <Text style={s.memberAvatarText}>{(m.displayName || "?")[0].toUpperCase()}</Text>}
+                </View>
+                <Text style={s.memberName} numberOfLines={1}>{m.displayName || "멤버"}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* 그룹 기록 피드 */}
+      {loading ? (
+        <View style={s.empty}><ActivityIndicator color={C.red} /></View>
+      ) : watches.length === 0 ? (
+        <View style={s.empty}>
+          <Ionicons name="film-outline" size={48} color={C.text3} />
+          <Text style={s.emptyText}>아직 기록이 없어요</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={watches}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => <WatchCard watch={item} />}
+          contentContainerStyle={{ paddingVertical: 8 }}
+        />
+      )}
+    </View>
   );
 }
