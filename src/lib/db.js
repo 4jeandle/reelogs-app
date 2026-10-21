@@ -182,6 +182,23 @@ export function subscribeBookmarks(uid, callback) {
   });
 }
 
+// ── 좋아요한 기록 ──────────────────────────────────────────
+export async function getLikedWatches(uid) {
+  const { collectionGroup } = await import("firebase/firestore");
+  const likesQ = query(collectionGroup(db, "likes"), where("uid", "==", uid));
+  const snap = await getDocs(likesQ);
+  const watchIds = snap.docs.map(d => d.ref.parent.parent.id);
+  if (watchIds.length === 0) return [];
+  const results = [];
+  for (let i = 0; i < watchIds.length; i += 10) {
+    const chunk = watchIds.slice(i, i + 10);
+    const wq = query(collection(db, "watches"), where("__name__", "in", chunk));
+    const wsnap = await getDocs(wq);
+    wsnap.docs.forEach(d => results.push({ id: d.id, ...d.data() }));
+  }
+  return results;
+}
+
 // ── 프로필 사진 ────────────────────────────────────────────
 export async function uploadProfilePhoto(uid, uri) {
   const response = await fetch(uri);

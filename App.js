@@ -16,7 +16,7 @@ import { ThemeProvider, useTheme } from "./src/lib/ThemeContext";
 import { AuthProvider, useAuth } from "./src/lib/AuthContext";
 import { OTT, formatDate } from "./src/lib/theme";
 import {
-  subscribeMyWatches, subscribeBookmarks, toggleBookmark, updateWatch, deleteWatch, setupPresence,
+  subscribeMyWatches, updateWatch, deleteWatch,
   uploadProfilePhoto, subscribeFriendWatches,
 } from "./src/lib/db";
 import { LoginScreen, FriendsScreen, FriendProfileScreen } from "./src/screens/OtherScreens";
@@ -134,7 +134,6 @@ function MyPageSheet({ visible, onClose }) {
   const { user, profile, logout } = useAuth();
   const [editModal, setEditModal] = useState(false);
   const [recordsModal, setRecordsModal] = useState(false);
-  const [bookmarkModal, setBookmarkModal] = useState(false);
   const [watches, setWatches] = useState([]);
   const insets = useSafeAreaInsets();
 
@@ -264,7 +263,7 @@ function MyPageSheet({ visible, onClose }) {
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); setBookmarkModal(true); }}>
+              <TouchableOpacity style={s.menuItem}>
                 <View style={s.menuIconWrap}><Ionicons name="bookmark-outline" size={18} color={C.text} /></View>
                 <Text style={s.menuText}>나중에 볼 작품</Text>
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
@@ -287,10 +286,6 @@ function MyPageSheet({ visible, onClose }) {
 
       <Modal visible={recordsModal} animationType="slide" onRequestClose={() => setRecordsModal(false)}>
         <MyRecordsScreen onClose={() => setRecordsModal(false)} />
-      </Modal>
-
-      <Modal visible={bookmarkModal} animationType="slide" onRequestClose={() => setBookmarkModal(false)}>
-        <BookmarksScreen onClose={() => setBookmarkModal(false)} />
       </Modal>
 
       <Modal visible={editModal} animationType="slide" onRequestClose={() => setEditModal(false)}>
@@ -448,11 +443,6 @@ function MainApp() {
   const { C } = useTheme();
   const { user, loading, profile } = useAuth();
   const [myPageVisible, setMyPageVisible] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (user) setupPresence(user.uid);
-  }, [user?.uid]);
 
   if (loading) {
     return (
@@ -463,6 +453,8 @@ function MainApp() {
   }
 
   if (!user) return <LoginScreen />;
+
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: C.surface }}>
@@ -500,90 +492,6 @@ function MainApp() {
 
       <MyPageSheet visible={myPageVisible} onClose={() => setMyPageVisible(false)} />
     </View>
-  );
-}
-
-// ──────────────────────────────────────────────────────────
-// BookmarksScreen
-// ──────────────────────────────────────────────────────────
-function BookmarksScreen({ onClose }) {
-  const { C } = useTheme();
-  const { user } = useAuth();
-  const [bookmarkedIds, setBookmarkedIds] = useState([]);
-  const [watches, setWatches] = useState([]);
-
-  useEffect(() => {
-    if (!user) return;
-    return subscribeBookmarks(user.uid, setBookmarkedIds);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    return subscribeMyWatches(user.uid, setWatches);
-  }, [user]);
-
-  const bookmarkedWatches = watches.filter(w => bookmarkedIds.includes(w.id));
-
-  const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
-    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
-    back: { padding: 4, marginRight: 8 },
-    headerTitle: { fontSize: 17, fontWeight: "700", color: C.text, flex: 1 },
-    countText: { fontSize: 13, color: C.text3 },
-    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-    emptyText: { fontSize: 15, fontWeight: "600", color: C.text3 },
-    emptySubText: { fontSize: 13, color: C.text3 },
-    item: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface, gap: 12 },
-    poster: { width: 48, height: 70, borderRadius: 8 },
-    posterEmpty: { width: 48, height: 70, borderRadius: 8, backgroundColor: C.surface2, alignItems: "center", justifyContent: "center" },
-    itemTitle: { fontSize: 15, fontWeight: "600", color: C.text, flex: 1 },
-    itemMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
-    stars: { fontSize: 13, color: "#FFB800", marginTop: 2 },
-    removeBtn: { padding: 8 },
-  });
-
-  return (
-    <SafeAreaView style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.back} onPress={onClose}>
-          <Ionicons name="arrow-back" size={22} color={C.text} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>나중에 볼 작품</Text>
-        <Text style={s.countText}>{bookmarkedWatches.length}편</Text>
-      </View>
-      {bookmarkedWatches.length === 0 ? (
-        <View style={s.empty}>
-          <Ionicons name="bookmark-outline" size={48} color={C.text3} />
-          <Text style={s.emptyText}>북마크한 작품이 없어요</Text>
-          <Text style={s.emptySubText}>기록에서 🔖 버튼을 눌러 추가하세요!</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={bookmarkedWatches}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => {
-            const ott = OTT[item.ott] || OTT.other;
-            return (
-              <View style={s.item}>
-                {item.posterUrl
-                  ? <Image source={{ uri: item.posterUrl }} style={s.poster} resizeMode="cover" />
-                  : <View style={s.posterEmpty}><Ionicons name="film-outline" size={20} color={C.text3} /></View>}
-                <View style={{ flex: 1 }}>
-                  <Text style={s.itemTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={s.itemMeta}>{ott.name} · {item.status === "want" ? "보고싶어요" : item.status}</Text>
-                  {item.rating > 0 && <Text style={s.stars}>{"★".repeat(item.rating)}</Text>}
-                </View>
-                <TouchableOpacity style={s.removeBtn} onPress={() => {
-                  toggleBookmark(item.id, user.uid);
-                }}>
-                  <Ionicons name="bookmark" size={22} color={C.red} />
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-        />
-      )}
-    </SafeAreaView>
   );
 }
 
