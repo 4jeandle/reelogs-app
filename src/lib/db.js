@@ -244,3 +244,24 @@ export async function fetchMemberProfiles(uids) {
   const snaps = await Promise.all(uids.map(uid => getDoc(doc(db, "users", uid))));
   return snaps.filter(s => s.exists()).map(s => ({ uid: s.id, ...s.data() }));
 }
+
+// ── 그룹 채팅 ──────────────────────────────────────────────
+export async function sendGroupMessage(groupId, uid, data) {
+  // data: { type: "text"|"content", text?, content? }
+  return addDoc(collection(db, "groups", groupId, "messages"), {
+    uid,
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeGroupMessages(groupId, callback) {
+  const q = query(
+    collection(db, "groups", groupId, "messages"),
+    orderBy("createdAt", "asc"),
+    limit(200)
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
