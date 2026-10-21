@@ -16,8 +16,8 @@ import { ThemeProvider, useTheme } from "./src/lib/ThemeContext";
 import { AuthProvider, useAuth } from "./src/lib/AuthContext";
 import { OTT, formatDate } from "./src/lib/theme";
 import {
-  subscribeMyWatches, updateWatch, deleteWatch,
-  uploadProfilePhoto, subscribeFriendWatches,
+  subscribeMyWatches, subscribeBookmarks, toggleBookmark, updateWatch, deleteWatch, setupPresence,
+  uploadProfilePhoto, subscribeFriendWatches, getLikedWatches,
 } from "./src/lib/db";
 import { LoginScreen, FriendsScreen, FriendProfileScreen } from "./src/screens/OtherScreens";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -134,6 +134,8 @@ function MyPageSheet({ visible, onClose }) {
   const { user, profile, logout } = useAuth();
   const [editModal, setEditModal] = useState(false);
   const [recordsModal, setRecordsModal] = useState(false);
+  const [bookmarkModal, setBookmarkModal] = useState(false);
+  const [likedModal, setLikedModal] = useState(false);
   const [watches, setWatches] = useState([]);
   const insets = useSafeAreaInsets();
 
@@ -223,7 +225,11 @@ function MyPageSheet({ visible, onClose }) {
                 </View>
                 <View style={s.profileInfo}>
                   <Text style={s.profileName}>{profile?.displayName || "나"}</Text>
-                  <Text style={s.profileEmail}>{user?.email}</Text>
+                  {profile?.bio ? (
+                    <Text style={{ fontSize: 12, color: C.text3, marginTop: 2 }} numberOfLines={1}>{profile.bio}</Text>
+                  ) : (
+                    <Text style={s.profileEmail}>{user?.email}</Text>
+                  )}
                   {profile?.inviteCode && (
                     <View style={s.inviteBadge}>
                       <Text style={s.inviteText}>{profile.inviteCode}</Text>
@@ -257,13 +263,13 @@ function MyPageSheet({ visible, onClose }) {
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); setRecordsModal(true); }}>
+              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); setLikedModal(true); }}>
                 <View style={s.menuIconWrap}><Ionicons name="heart-outline" size={18} color={C.text} /></View>
                 <Text style={s.menuText}>좋아한 작품</Text>
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.menuItem}>
+              <TouchableOpacity style={s.menuItem} onPress={() => { onClose(); setBookmarkModal(true); }}>
                 <View style={s.menuIconWrap}><Ionicons name="bookmark-outline" size={18} color={C.text} /></View>
                 <Text style={s.menuText}>나중에 볼 작품</Text>
                 <Ionicons name="chevron-forward" size={16} color={C.text3} style={s.menuArrow} />
@@ -288,6 +294,14 @@ function MyPageSheet({ visible, onClose }) {
         <MyRecordsScreen onClose={() => setRecordsModal(false)} />
       </Modal>
 
+      <Modal visible={bookmarkModal} animationType="slide" onRequestClose={() => setBookmarkModal(false)}>
+        <BookmarksScreen onClose={() => setBookmarkModal(false)} />
+      </Modal>
+
+      <Modal visible={likedModal} animationType="slide" onRequestClose={() => setLikedModal(false)}>
+        <LikedWorksScreen onClose={() => setLikedModal(false)} />
+      </Modal>
+
       <Modal visible={editModal} animationType="slide" onRequestClose={() => setEditModal(false)}>
         <EditProfileModal onClose={() => setEditModal(false)} />
       </Modal>
@@ -302,6 +316,7 @@ function EditProfileModal({ onClose }) {
   const { C } = useTheme();
   const { user, profile } = useAuth();
   const [name, setName] = useState(profile?.displayName || "");
+  const [bio, setBio] = useState(profile?.bio || "");
   const [loading, setLoading] = useState(false);
 
   async function handleSave() {
@@ -310,8 +325,12 @@ function EditProfileModal({ onClose }) {
     try {
       const { updateDoc, doc } = await import("firebase/firestore");
       const { db } = await import("./src/lib/firebase");
-      await updateDoc(doc(db, "users", user.uid), { displayName: name.trim() });
+      await updateDoc(doc(db, "users", user.uid), {
+        displayName: name.trim(),
+        bio: bio.trim(),
+      });
       onClose();
+      setTimeout(() => Alert.alert("저장 완료", "프로필이 업데이트됐어요!"), 300);
     } catch (e) {
       Alert.alert("오류", e.message);
     } finally { setLoading(false); }
@@ -373,6 +392,19 @@ function EditProfileModal({ onClose }) {
       <View style={s.section}>
         <Text style={s.label}>닉네임</Text>
         <TextInput style={s.input} value={name} onChangeText={setName} placeholder="닉네임을 입력하세요" placeholderTextColor={C.text3} />
+      </View>
+      <View style={s.section}>
+        <Text style={s.label}>한줄소개</Text>
+        <TextInput
+          style={[s.input, { minHeight: 80, textAlignVertical: "top" }]}
+          value={bio}
+          onChangeText={setBio}
+          placeholder="나를 소개해보세요"
+          placeholderTextColor={C.text3}
+          multiline
+          maxLength={100}
+        />
+        <Text style={{ fontSize: 11, color: C.text3, textAlign: "right", marginTop: 4 }}>{bio.length}/100</Text>
       </View>
       <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={loading}>
         {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>저장</Text>}
@@ -443,6 +475,11 @@ function MainApp() {
   const { C } = useTheme();
   const { user, loading, profile } = useAuth();
   const [myPageVisible, setMyPageVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (user) setupPresence(user.uid);
+  }, [user?.uid]);
 
   if (loading) {
     return (
@@ -453,8 +490,6 @@ function MainApp() {
   }
 
   if (!user) return <LoginScreen />;
-
-  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: C.surface }}>
@@ -492,6 +527,173 @@ function MainApp() {
 
       <MyPageSheet visible={myPageVisible} onClose={() => setMyPageVisible(false)} />
     </View>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+// BookmarksScreen
+// ──────────────────────────────────────────────────────────
+function BookmarksScreen({ onClose }) {
+  const { C } = useTheme();
+  const { user } = useAuth();
+  const [bookmarkedIds, setBookmarkedIds] = useState([]);
+  const [watches, setWatches] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeBookmarks(user.uid, setBookmarkedIds);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeMyWatches(user.uid, setWatches);
+  }, [user]);
+
+  const bookmarkedWatches = watches.filter(w => bookmarkedIds.includes(w.id));
+
+  const s = StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
+    back: { padding: 4, marginRight: 8 },
+    headerTitle: { fontSize: 17, fontWeight: "700", color: C.text, flex: 1 },
+    countText: { fontSize: 13, color: C.text3 },
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+    emptyText: { fontSize: 15, fontWeight: "600", color: C.text3 },
+    emptySubText: { fontSize: 13, color: C.text3 },
+    item: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface, gap: 12 },
+    poster: { width: 48, height: 70, borderRadius: 8 },
+    posterEmpty: { width: 48, height: 70, borderRadius: 8, backgroundColor: C.surface2, alignItems: "center", justifyContent: "center" },
+    itemTitle: { fontSize: 15, fontWeight: "600", color: C.text, flex: 1 },
+    itemMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
+    stars: { fontSize: 13, color: "#FFB800", marginTop: 2 },
+    removeBtn: { padding: 8 },
+  });
+
+  return (
+    <SafeAreaView style={s.container}>
+      <View style={s.header}>
+        <TouchableOpacity style={s.back} onPress={onClose}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>나중에 볼 작품</Text>
+        <Text style={s.countText}>{bookmarkedWatches.length}편</Text>
+      </View>
+      {bookmarkedWatches.length === 0 ? (
+        <View style={s.empty}>
+          <Ionicons name="bookmark-outline" size={48} color={C.text3} />
+          <Text style={s.emptyText}>북마크한 작품이 없어요</Text>
+          <Text style={s.emptySubText}>기록에서 🔖 버튼을 눌러 추가하세요!</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={bookmarkedWatches}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => {
+            const ott = OTT[item.ott] || OTT.other;
+            return (
+              <View style={s.item}>
+                {item.posterUrl
+                  ? <Image source={{ uri: item.posterUrl }} style={s.poster} resizeMode="cover" />
+                  : <View style={s.posterEmpty}><Ionicons name="film-outline" size={20} color={C.text3} /></View>}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.itemTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={s.itemMeta}>{ott.name} · {item.status === "want" ? "보고싶어요" : item.status}</Text>
+                  {item.rating > 0 && <Text style={s.stars}>{"★".repeat(item.rating)}</Text>}
+                </View>
+                <TouchableOpacity style={s.removeBtn} onPress={() => {
+                  toggleBookmark(item.id, user.uid);
+                }}>
+                  <Ionicons name="bookmark" size={22} color={C.red} />
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+// LikedWorksScreen
+// ──────────────────────────────────────────────────────────
+function LikedWorksScreen({ onClose }) {
+  const { C } = useTheme();
+  const { user } = useAuth();
+  const [likedWatches, setLikedWatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    getLikedWatches(user.uid)
+      .then(setLikedWatches)
+      .catch(e => Alert.alert("오류", e.message))
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const s = StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
+    back: { padding: 4, marginRight: 8 },
+    headerTitle: { fontSize: 17, fontWeight: "700", color: C.text, flex: 1 },
+    countText: { fontSize: 13, color: C.text3 },
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+    emptyText: { fontSize: 15, fontWeight: "600", color: C.text3 },
+    emptySubText: { fontSize: 13, color: C.text3 },
+    item: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface, gap: 12 },
+    poster: { width: 48, height: 70, borderRadius: 8 },
+    posterEmpty: { width: 48, height: 70, borderRadius: 8, backgroundColor: C.surface2, alignItems: "center", justifyContent: "center" },
+    itemTitle: { fontSize: 15, fontWeight: "600", color: C.text, flex: 1 },
+    itemMeta: { fontSize: 12, color: C.text3, marginTop: 4 },
+    stars: { fontSize: 13, color: "#FFB800", marginTop: 2 },
+    heartIcon: { padding: 8 },
+  });
+
+  return (
+    <SafeAreaView style={s.container}>
+      <View style={s.header}>
+        <TouchableOpacity style={s.back} onPress={onClose}>
+          <Ionicons name="arrow-back" size={22} color={C.text} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>좋아한 작품</Text>
+        <Text style={s.countText}>{likedWatches.length}편</Text>
+      </View>
+      {loading ? (
+        <View style={s.empty}>
+          <ActivityIndicator size="large" color={C.red} />
+        </View>
+      ) : likedWatches.length === 0 ? (
+        <View style={s.empty}>
+          <Ionicons name="heart-outline" size={48} color={C.text3} />
+          <Text style={s.emptyText}>좋아한 작품이 없어요</Text>
+          <Text style={s.emptySubText}>피드에서 ♥ 버튼을 눌러보세요!</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={likedWatches}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => {
+            const ott = OTT[item.ott] || OTT.other;
+            return (
+              <View style={s.item}>
+                {item.posterUrl
+                  ? <Image source={{ uri: item.posterUrl }} style={s.poster} resizeMode="cover" />
+                  : <View style={s.posterEmpty}><Ionicons name="film-outline" size={20} color={C.text3} /></View>}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.itemTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={s.itemMeta}>{ott.name} · {item.displayName || "알 수 없음"}</Text>
+                  {item.rating > 0 && <Text style={s.stars}>{"★".repeat(Math.round(item.rating))}</Text>}
+                </View>
+                <View style={s.heartIcon}>
+                  <Ionicons name="heart" size={22} color={C.red} />
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
