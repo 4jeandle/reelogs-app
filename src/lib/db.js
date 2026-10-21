@@ -237,3 +237,10 @@ export function subscribePresence(uid, callback) {
   const userRef = rtdbRef(rtdb, `presence/${uid}`);
   return onValue(userRef, snap => callback(snap.val()));
 }
+
+// ── 멤버 프로필 병렬 로드 ──────────────────────────────────
+export async function fetchMemberProfiles(uids) {
+  if (!uids || uids.length === 0) return [];
+  const snaps = await Promise.all(uids.map(uid => getDoc(doc(db, "users", uid))));
+  return snaps.filter(s => s.exists()).map(s => ({ uid: s.id, ...s.data() }));
+}

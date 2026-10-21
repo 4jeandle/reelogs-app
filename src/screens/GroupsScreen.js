@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, ScrollView, Image,
+  Modal, TextInput, Alert, ActivityIndicator, ScrollView, Image, SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
-import { subscribeMyGroups, createGroup, joinGroupByCode, deleteGroup, subscribeGroupWatches } from "../lib/db";
+import { subscribeMyGroups, createGroup, joinGroupByCode, deleteGroup, subscribeGroupWatches, fetchMemberProfiles } from "../lib/db";
 import WatchCard from "../components/WatchCard";
 
 export default function GroupsScreen() {
@@ -238,23 +238,9 @@ function GroupDetailScreen({ group, onBack, C, user }) {
   const [memberProfiles, setMemberProfiles] = useState([]);
 
   useEffect(() => {
-    import("firebase/firestore").then(({ getDoc, doc, getDocs, collection, query, where, orderBy }) => {
-      import("../lib/firebase").then(({ db }) => {
-        // 멤버 프로필 가져오기
-        const fetchMembers = async () => {
-          const profiles = [];
-          for (const uid of (group.members || [])) {
-            try {
-              const snap = await getDoc(doc(db, "users", uid));
-              if (snap.exists()) profiles.push({ uid, ...snap.data() });
-            } catch {}
-          }
-          setMemberProfiles(profiles);
-        };
-        fetchMembers();
-      });
-    });
-  }, [group]);
+    // 멤버 프로필 병렬 로드
+    fetchMemberProfiles(group.members || []).then(setMemberProfiles).catch(() => {});
+  }, [group.id]);
 
   useEffect(() => {
     if (!group.members || group.members.length === 0) { setLoading(false); return; }
@@ -264,7 +250,7 @@ function GroupDetailScreen({ group, onBack, C, user }) {
       setLoading(false);
     });
     return unsub;
-  }, [group.members]);
+  }, [group.id]);
 
   const s = React.useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
@@ -295,7 +281,7 @@ function GroupDetailScreen({ group, onBack, C, user }) {
   const COLORS = ["#FF3B30", "#FF9500", "#34C759", "#007AFF", "#AF52DE"];
 
   return (
-    <View style={s.container}>
+    <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.back} onPress={onBack}>
           <Ionicons name="arrow-back" size={22} color={C.text} />
@@ -335,10 +321,10 @@ function GroupDetailScreen({ group, onBack, C, user }) {
         <FlatList
           data={watches}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => <WatchCard watch={item} />}
+          renderItem={({ item }) => <WatchCard watch={item} friendProfiles={memberProfiles} />}
           contentContainerStyle={{ paddingVertical: 8 }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
