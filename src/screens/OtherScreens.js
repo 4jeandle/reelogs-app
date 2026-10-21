@@ -350,14 +350,26 @@ export function FriendProfileScreen({ friend, onClose }) {
 
   async function handleWatch(watch) {
     const ott = OTT[watch.ott] || OTT.other;
-    if (!ott.url) return;
-    if (ott.scheme) {
+    const title = watch.title || "";
+    const query = encodeURIComponent(title);
+
+    if (watch.ott === "appletv") {
+      try { await Linking.openURL((ott.url || "https://tv.apple.com/search?term=") + query); } catch {}
+      return;
+    }
+
+    if (ott.scheme && title) {
+      const deepUrl = ott.scheme + query;
       try {
-        const ok = await Linking.canOpenURL(ott.scheme);
-        if (ok) { await Linking.openURL(ott.scheme); return; }
+        const baseScheme = ott.scheme.split("//")[0] + "//";
+        const ok = await Linking.canOpenURL(baseScheme);
+        if (ok) { await Linking.openURL(deepUrl); return; }
       } catch {}
     }
-    Linking.openURL(ott.url);
+
+    if (ott.url) {
+      try { await Linking.openURL(title ? ott.url + query : ott.url); } catch {}
+    }
   }
 
   const s = StyleSheet.create({

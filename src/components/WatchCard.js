@@ -274,21 +274,39 @@ export default function WatchCard({ watch, friendProfiles }) {
     : (friendProfiles?.[watch.uid]?.displayName || watch.displayName || "친구");
 
   async function handleWatch() {
-    // 앱 scheme 먼저 시도, 실패하면 웹사이트로
-    if (ott.scheme) {
+    const title = watch.title || "";
+    const query = encodeURIComponent(title);
+
+    // Apple TV는 universal link 방식 (scheme이 검색어 지원 안 함)
+    if (watch.ott === "appletv") {
+      const webUrl = ott.url + query;
+      try { await Linking.openURL(webUrl); } catch {}
+      return;
+    }
+
+    // 1순위: 앱 딥링크 (scheme + 검색어)
+    if (ott.scheme && title) {
+      const deepUrl = ott.scheme + query;
       try {
-        const supported = await Linking.canOpenURL(ott.scheme);
+        // canOpenURL은 scheme 기반으로만 확인 (쿼리 없이)
+        const baseScheme = ott.scheme.split("//")[0] + "//";
+        const supported = await Linking.canOpenURL(baseScheme);
         if (supported) {
-          await Linking.openURL(ott.scheme);
+          await Linking.openURL(deepUrl);
           return;
         }
       } catch {}
     }
-    // 앱 없으면 웹으로
+
+    // 2순위: 웹 검색 (제목 쿼리 포함)
+    if (ott.url && title) {
+      try { await Linking.openURL(ott.url + query); } catch {}
+      return;
+    }
+
+    // 3순위: 그냥 웹 홈
     if (ott.url) {
-      try {
-        await Linking.openURL(ott.url);
-      } catch {}
+      try { await Linking.openURL(ott.url); } catch {}
     }
   }
 

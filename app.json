@@ -7,7 +7,20 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "nflx",
+          "wavve",
+          "tving",
+          "watcha",
+          "disneyplus",
+          "videos",
+          "coupangplay",
+          "laftel",
+          "seezn"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
