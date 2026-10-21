@@ -255,17 +255,17 @@ function GroupDetailScreen({ group, onBack, C, user }) {
   const s = React.useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
     header: {
-      flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14,
+      flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 16,
       backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
     },
     back: { padding: 4, marginRight: 8 },
     headerTitle: { fontSize: 17, fontWeight: "700", color: C.text, flex: 1 },
     headerCode: { fontSize: 13, color: C.text3 },
     memberSection: {
-      backgroundColor: C.surface, paddingVertical: 14, paddingHorizontal: 16,
+      backgroundColor: C.surface, paddingVertical: 12, paddingHorizontal: 20,
       borderBottomWidth: 1, borderBottomColor: C.border,
     },
-    memberLabel: { fontSize: 12, color: C.text3, fontWeight: "600", marginBottom: 10 },
+    memberLabel: { fontSize: 12, color: C.text3, fontWeight: "600", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
     memberRow: { flexDirection: "row", gap: 12 },
     memberItem: { alignItems: "center", gap: 4 },
     memberAvatar: {
@@ -281,7 +281,7 @@ function GroupDetailScreen({ group, onBack, C, user }) {
   const COLORS = ["#FF3B30", "#FF9500", "#34C759", "#007AFF", "#AF52DE"];
 
   return (
-    <SafeAreaView style={s.container}>
+    <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.back} onPress={onBack}>
           <Ionicons name="arrow-back" size={22} color={C.text} />
@@ -322,9 +322,9 @@ function GroupDetailScreen({ group, onBack, C, user }) {
           data={watches}
           keyExtractor={item => item.id}
           renderItem={({ item }) => <WatchCard watch={item} friendProfiles={memberProfiles} />}
-          contentContainerStyle={{ paddingVertical: 8 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
