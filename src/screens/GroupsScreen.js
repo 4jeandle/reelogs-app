@@ -484,7 +484,11 @@ function GroupDetailScreen({ group, onBack, C, user }) {
   }), [C]);
 
   return (
-    <View style={s.container}>
+    <KeyboardAvoidingView
+      style={s.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
       {/* 헤더 */}
       <View style={s.header}>
         <TouchableOpacity style={s.back} onPress={onBack}>
@@ -561,6 +565,6 @@ function GroupDetailScreen({ group, onBack, C, user }) {
         onSelect={handleSendContent}
         C={C}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

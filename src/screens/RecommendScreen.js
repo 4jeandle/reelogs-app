@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Image, Modal, ActivityIndicator, Linking,
   ScrollView, Platform, Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ThemeContext } from "../../App";
+import { useTheme } from "../lib/ThemeContext";
 import { OTT } from "../lib/theme";
 
 const TMDB_KEY = "7baea0b714dbb25a96c6a9f1ba91f88e";
@@ -272,7 +272,7 @@ function ContentCard({ item, onPress, bookmarked, onToggleBookmark, C }) {
 
 // ─── 메인 화면 ────────────────────────────────────────────────────────
 export default function RecommendScreen() {
-  const C = useContext(ThemeContext);
+  const { C } = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
