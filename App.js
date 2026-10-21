@@ -22,6 +22,7 @@ import {
 import { LoginScreen, FriendsScreen, FriendProfileScreen } from "./src/screens/OtherScreens";
 import HomeScreen from "./src/screens/HomeScreen";
 import GroupsScreen from "./src/screens/GroupsScreen";
+import RecommendScreen from "./src/screens/RecommendScreen";
 import TimelineScreen from "./src/screens/TimelineScreen";
 
 const Tab = createBottomTabNavigator();
@@ -597,6 +598,7 @@ function MainApp() {
               홈: focused ? "home" : "home-outline",
               타임라인: focused ? "time" : "time-outline",
               그룹: focused ? "people" : "people-outline",
+              추천: focused ? "sparkles" : "sparkles-outline",
               친구: focused ? "person-add" : "person-add-outline",
             };
             return <Ionicons name={icons[route.name]} size={22} color={color} />;
@@ -606,6 +608,7 @@ function MainApp() {
         <Tab.Screen name="홈" component={HomeScreen} />
         <Tab.Screen name="타임라인" component={TimelineScreen} />
         <Tab.Screen name="그룹" component={GroupsScreen} />
+        <Tab.Screen name="추천" component={RecommendScreen} />
         <Tab.Screen name="친구" component={FriendsTab} />
       </Tab.Navigator>
 
