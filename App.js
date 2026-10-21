@@ -315,24 +315,66 @@ function MyPageSheet({ visible, onClose }) {
 function EditProfileModal({ onClose }) {
   const { C } = useTheme();
   const { user, profile } = useAuth();
+  const [tab, setTab] = useState("profile"); // "profile" | "account"
   const [name, setName] = useState(profile?.displayName || "");
   const [bio, setBio] = useState(profile?.bio || "");
+  const [newEmail, setNewEmail] = useState("");
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSave() {
-    if (!name.trim()) return;
+  async function handleSaveProfile() {
+    if (!name.trim()) { Alert.alert("오류", "닉네임을 입력해주세요"); return; }
     setLoading(true);
     try {
       const { updateDoc, doc } = await import("firebase/firestore");
       const { db } = await import("./src/lib/firebase");
-      await updateDoc(doc(db, "users", user.uid), {
-        displayName: name.trim(),
-        bio: bio.trim(),
-      });
+      await updateDoc(doc(db, "users", user.uid), { displayName: name.trim(), bio: bio.trim() });
       onClose();
       setTimeout(() => Alert.alert("저장 완료", "프로필이 업데이트됐어요!"), 300);
+    } catch (e) { Alert.alert("오류", e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function handleChangeEmail() {
+    if (!newEmail.trim()) { Alert.alert("오류", "새 이메일을 입력해주세요"); return; }
+    if (!currentPw) { Alert.alert("오류", "현재 비밀번호를 입력해주세요"); return; }
+    setLoading(true);
+    try {
+      const { EmailAuthProvider, reauthenticateWithCredential, updateEmail } = await import("firebase/auth");
+      const credential = EmailAuthProvider.credential(user.email, currentPw);
+      await reauthenticateWithCredential(user, credential);
+      await updateEmail(user, newEmail.trim());
+      const { updateDoc, doc } = await import("firebase/firestore");
+      const { db } = await import("./src/lib/firebase");
+      await updateDoc(doc(db, "users", user.uid), { email: newEmail.trim() });
+      setNewEmail(""); setCurrentPw("");
+      Alert.alert("완료", "이메일이 변경됐어요!");
     } catch (e) {
-      Alert.alert("오류", e.message);
+      const msg = e.code === "auth/wrong-password" ? "현재 비밀번호가 틀렸어요"
+        : e.code === "auth/email-already-in-use" ? "이미 사용 중인 이메일이에요"
+        : e.code === "auth/invalid-email" ? "올바른 이메일 형식이 아니에요"
+        : e.message;
+      Alert.alert("오류", msg);
+    } finally { setLoading(false); }
+  }
+
+  async function handleChangePassword() {
+    if (!currentPw) { Alert.alert("오류", "현재 비밀번호를 입력해주세요"); return; }
+    if (!newPw || newPw.length < 6) { Alert.alert("오류", "새 비밀번호는 6자 이상이어야 해요"); return; }
+    if (newPw !== confirmPw) { Alert.alert("오류", "새 비밀번호가 일치하지 않아요"); return; }
+    setLoading(true);
+    try {
+      const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = await import("firebase/auth");
+      const credential = EmailAuthProvider.credential(user.email, currentPw);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPw);
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      Alert.alert("완료", "비밀번호가 변경됐어요!");
+    } catch (e) {
+      const msg = e.code === "auth/wrong-password" ? "현재 비밀번호가 틀렸어요" : e.message;
+      Alert.alert("오류", msg);
     } finally { setLoading(false); }
   }
 
@@ -343,30 +385,36 @@ function EditProfileModal({ onClose }) {
     });
     if (result.canceled) return;
     setLoading(true);
-    try {
-      await uploadProfilePhoto(user.uid, result.assets[0].uri);
-    } catch (e) {
-      Alert.alert("오류", e.message);
-    } finally { setLoading(false); }
+    try { await uploadProfilePhoto(user.uid, result.assets[0].uri); }
+    catch (e) { Alert.alert("오류", e.message); }
+    finally { setLoading(false); }
   }
 
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
     header: { flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
     title: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "700", color: C.text },
-    avatarSection: { alignItems: "center", padding: 24 },
-    avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.red, alignItems: "center", justifyContent: "center" },
-    avatarText: { fontSize: 36, color: "#FFF", fontWeight: "700" },
-    changePhoto: { marginTop: 10, color: C.red, fontSize: 14, fontWeight: "600" },
-    section: { padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-    label: { fontSize: 13, color: C.text3, marginBottom: 8, fontWeight: "600" },
+    tabs: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: C.border },
+    tabBtn: { flex: 1, paddingVertical: 12, alignItems: "center" },
+    tabText: { fontSize: 14, fontWeight: "600", color: C.text3 },
+    tabTextActive: { color: C.red },
+    tabBar: { height: 2, backgroundColor: C.red, marginTop: 10 },
+    avatarSection: { alignItems: "center", padding: 20 },
+    avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: C.red, alignItems: "center", justifyContent: "center" },
+    avatarText: { fontSize: 30, color: "#FFF", fontWeight: "700" },
+    changePhoto: { marginTop: 8, color: C.red, fontSize: 14, fontWeight: "600" },
+    section: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    sectionTitle: { fontSize: 13, color: C.text3, fontWeight: "700", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 },
+    label: { fontSize: 13, color: C.text3, marginBottom: 6, fontWeight: "600" },
     input: {
       borderWidth: 1, borderColor: C.border, borderRadius: 10,
-      paddingHorizontal: 14, paddingVertical: 12, fontSize: 16,
-      color: C.text, backgroundColor: C.surface,
+      paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
+      color: C.text, backgroundColor: C.surface, marginBottom: 10,
     },
+    emailHint: { fontSize: 12, color: C.text3, marginBottom: 10 },
     saveBtn: { backgroundColor: C.red, margin: 16, borderRadius: 10, paddingVertical: 14, alignItems: "center" },
     saveBtnText: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+    divider: { height: 8, backgroundColor: C.bg },
   });
 
   const initial = (profile?.displayName || "?").charAt(0).toUpperCase();
@@ -375,40 +423,94 @@ function EditProfileModal({ onClose }) {
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={onClose}><Text style={{ color: C.text3, fontSize: 16 }}>취소</Text></TouchableOpacity>
-        <Text style={s.title}>프로필 편집</Text>
+        <Text style={s.title}>정보 수정</Text>
         <View style={{ width: 40 }} />
       </View>
-      <View style={s.avatarSection}>
-        <View style={s.avatar}>
-          {profile?.photoURL
-            ? <Image source={{ uri: profile.photoURL }} style={{ width: 80, height: 80, borderRadius: 40 }} />
-            : <Text style={s.avatarText}>{initial}</Text>
-          }
-        </View>
-        <TouchableOpacity onPress={handlePickPhoto}>
-          <Text style={s.changePhoto}>사진 변경</Text>
+
+      {/* 탭 */}
+      <View style={s.tabs}>
+        <TouchableOpacity style={s.tabBtn} onPress={() => setTab("profile")}>
+          <Text style={[s.tabText, tab === "profile" && s.tabTextActive]}>프로필</Text>
+          {tab === "profile" && <View style={s.tabBar} />}
+        </TouchableOpacity>
+        <TouchableOpacity style={s.tabBtn} onPress={() => setTab("account")}>
+          <Text style={[s.tabText, tab === "account" && s.tabTextActive]}>계정</Text>
+          {tab === "account" && <View style={s.tabBar} />}
         </TouchableOpacity>
       </View>
-      <View style={s.section}>
-        <Text style={s.label}>닉네임</Text>
-        <TextInput style={s.input} value={name} onChangeText={setName} placeholder="닉네임을 입력하세요" placeholderTextColor={C.text3} />
-      </View>
-      <View style={s.section}>
-        <Text style={s.label}>한줄소개</Text>
-        <TextInput
-          style={[s.input, { minHeight: 80, textAlignVertical: "top" }]}
-          value={bio}
-          onChangeText={setBio}
-          placeholder="나를 소개해보세요"
-          placeholderTextColor={C.text3}
-          multiline
-          maxLength={100}
-        />
-        <Text style={{ fontSize: 11, color: C.text3, textAlign: "right", marginTop: 4 }}>{bio.length}/100</Text>
-      </View>
-      <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={loading}>
-        {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>저장</Text>}
-      </TouchableOpacity>
+
+      <ScrollView>
+        {tab === "profile" ? (
+          <>
+            <View style={s.avatarSection}>
+              <View style={s.avatar}>
+                {profile?.photoURL
+                  ? <Image source={{ uri: profile.photoURL }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+                  : <Text style={s.avatarText}>{initial}</Text>}
+              </View>
+              <TouchableOpacity onPress={handlePickPhoto}>
+                <Text style={s.changePhoto}>사진 변경</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={s.section}>
+              <Text style={s.label}>닉네임</Text>
+              <TextInput style={s.input} value={name} onChangeText={setName} placeholder="닉네임" placeholderTextColor={C.text3} />
+              <Text style={s.label}>한줄소개</Text>
+              <TextInput
+                style={[s.input, { minHeight: 72, textAlignVertical: "top" }]}
+                value={bio} onChangeText={setBio}
+                placeholder="나를 소개해보세요" placeholderTextColor={C.text3}
+                multiline maxLength={100}
+              />
+              <Text style={{ fontSize: 11, color: C.text3, textAlign: "right" }}>{bio.length}/100</Text>
+            </View>
+            <TouchableOpacity style={s.saveBtn} onPress={handleSaveProfile} disabled={loading}>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>저장</Text>}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* 이메일 변경 */}
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>이메일 변경</Text>
+              <Text style={s.emailHint}>현재: {user?.email}</Text>
+              <Text style={s.label}>새 이메일</Text>
+              <TextInput style={s.input} value={newEmail} onChangeText={setNewEmail}
+                placeholder="새 이메일 주소" placeholderTextColor={C.text3}
+                keyboardType="email-address" autoCapitalize="none" />
+              <Text style={s.label}>현재 비밀번호 확인</Text>
+              <TextInput style={s.input} value={currentPw} onChangeText={setCurrentPw}
+                placeholder="현재 비밀번호" placeholderTextColor={C.text3}
+                secureTextEntry />
+              <TouchableOpacity style={s.saveBtn} onPress={handleChangeEmail} disabled={loading}>
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>이메일 변경</Text>}
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.divider} />
+
+            {/* 비밀번호 변경 */}
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>비밀번호 변경</Text>
+              <Text style={s.label}>현재 비밀번호</Text>
+              <TextInput style={s.input} value={currentPw} onChangeText={setCurrentPw}
+                placeholder="현재 비밀번호" placeholderTextColor={C.text3}
+                secureTextEntry />
+              <Text style={s.label}>새 비밀번호</Text>
+              <TextInput style={s.input} value={newPw} onChangeText={setNewPw}
+                placeholder="6자 이상" placeholderTextColor={C.text3}
+                secureTextEntry />
+              <Text style={s.label}>새 비밀번호 확인</Text>
+              <TextInput style={s.input} value={confirmPw} onChangeText={setConfirmPw}
+                placeholder="비밀번호 재입력" placeholderTextColor={C.text3}
+                secureTextEntry />
+              <TouchableOpacity style={s.saveBtn} onPress={handleChangePassword} disabled={loading}>
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={s.saveBtnText}>비밀번호 변경</Text>}
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

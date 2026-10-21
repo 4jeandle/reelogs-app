@@ -274,13 +274,22 @@ export default function WatchCard({ watch, friendProfiles }) {
     : (friendProfiles?.[watch.uid]?.displayName || watch.displayName || "친구");
 
   async function handleWatch() {
+    // 앱 scheme 먼저 시도, 실패하면 웹사이트로
     if (ott.scheme) {
       try {
-        const ok = await Linking.canOpenURL(ott.scheme);
-        if (ok) { await Linking.openURL(ott.scheme); return; }
+        const supported = await Linking.canOpenURL(ott.scheme);
+        if (supported) {
+          await Linking.openURL(ott.scheme);
+          return;
+        }
       } catch {}
     }
-    if (ott.url) Linking.openURL(ott.url);
+    // 앱 없으면 웹으로
+    if (ott.url) {
+      try {
+        await Linking.openURL(ott.url);
+      } catch {}
+    }
   }
 
   function handleMore() { setMoreSheet(true); }
@@ -318,10 +327,10 @@ export default function WatchCard({ watch, friendProfiles }) {
     title: { fontSize: 16, fontWeight: "700", paddingHorizontal: 14, paddingBottom: 4, color: C.text },
     stars: { fontSize: 14, color: "#FFB800", paddingHorizontal: 14, paddingBottom: 4 },
     memo: { fontSize: 13, lineHeight: 18, paddingHorizontal: 14, paddingBottom: 8, color: C.text3 },
-    actions: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 6 },
-    actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 10 },
-    actionCount: { fontSize: 12, fontWeight: "600" },
-    watchBtn: { flex: 1, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: ott.color },
+    actions: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.border },
+    actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, minWidth: 44 },
+    actionCount: { fontSize: 12, fontWeight: "600", minWidth: 16 },
+    watchBtn: { flex: 1, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: ott.color, marginHorizontal: 6 },
     watchBtnText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
     // More sheet
     moreOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
